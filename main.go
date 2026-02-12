@@ -429,7 +429,6 @@ type multisite struct {
 }
 
 func (m *multisite) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Server", "SideKick") // indicate sidekick is serving the request
 	for _, s := range m.sites {
 		if s.Online() {
 			if r.URL.Path == healthPath {
@@ -831,9 +830,11 @@ func configureSite(appCtx context.Context, ctx *cli.Context, siteNum int, siteSt
 		if err != nil {
 			console.Fatalln(err)
 		}
-		backend := &Backend{siteNum, endpoint, proxy, &http.Client{
-			Transport: proxy.Transport,
-		}, 0, healthCheckURL, healthCheckDuration, &stats}
+		backend := &Backend{
+			siteNum, endpoint, proxy, &http.Client{
+				Transport: proxy.Transport,
+			}, 0, healthCheckURL, healthCheckDuration, &stats,
+		}
 		go backend.healthCheck(appCtx)
 		proxy.ErrorHandler = backend.ErrorHandler
 		backends = append(backends, backend)
