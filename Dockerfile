@@ -1,12 +1,12 @@
-# syntax=docker/dockerfile:1.6
+# syntax=docker/dockerfile:1.20
 
-ARG GOLANG_VERSION="1.21"
-ARG BUILD_IMAGE="golang:${GOLANG_VERSION}-alpine"
+ARG GOLANG_VERSION="1.25"
+ARG BUILD_IMAGE="public.ecr.aws/docker/library/golang:${GOLANG_VERSION}-alpine"
 ARG GOLANGCI_LINT_IMAGE="golangci/golangci-lint:latest"
-ARG BASE_IMAGE="scratch"
+ARG BASE_IMAGE="dier/distroless-static-debian13:nonroot-flatten"
 
 # =============================================================================
-FROM ${BUILD_IMAGE} as base
+FROM ${BUILD_IMAGE} AS base
 
 SHELL ["/bin/sh", "-e", "-u", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-c"]
 
@@ -14,12 +14,8 @@ WORKDIR /src/sidekick
 
 ARG GO111MODULE="on"
 ARG CGO_ENABLED="0"
-ARG GOARCH="amd64"
-ARG GOOS="linux"
 ENV GO111MODULE="${GO111MODULE}" \
-    CGO_ENABLED="${CGO_ENABLED}"  \
-    GOARCH="${GOARCH}" \
-    GOOS="${GOOS}"
+    CGO_ENABLED="${CGO_ENABLED}"
 
 COPY ./go.* ./
 
@@ -57,7 +53,7 @@ RUN --mount=type=bind,source=./,target=./ \
     go test -v -coverprofile=/cover.out ./...
 
 # =============================================================================
-FROM base as build
+FROM base AS build
 
 ARG APP_VERSION="docker"
 
@@ -76,6 +72,7 @@ RUN --mount=type=bind,source=./,target=./ \
 COPY --from=test /cover.out /cover.out
 
 # =============================================================================
-FROM ${BASE_IMAGE} as release
-COPY --link --from=build /sidekick /sidekick
+FROM ${BASE_IMAGE} AS release
+USER nonroot:nonroot
+COPY --from=build --chown=nonroot:nonroot /sidekick /sidekick
 ENTRYPOINT [ "/sidekick" ]
